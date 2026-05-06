@@ -1,0 +1,1 @@
+﻿# Stock Pilot`n`nA browser-based stock research dashboard with technical scoring, price scenarios, watchlist, scanner, and simple backtests.`n`nOpen `index.html` directly or publish with GitHub Pages.
