@@ -144,9 +144,40 @@
       </section>
 
       <section class="card">
-        <div class="section-head compact">
-          <h3>Market scanner</h3>
-          <button id="scanBtn" class="ghost-btn" type="button">Scan popular symbols</button>
+        <div class="section-head compact scanner-head">
+          <div>
+            <h3>Market scanner</h3>
+            <p class="muted small">Build a watch universe, rank technical strength, and click a row to open full analysis.</p>
+          </div>
+          <button id="scanBtn" class="ghost-btn" type="button">Scan list</button>
+        </div>
+        <div class="scanner-controls">
+          <label class="scanner-symbols">
+            Scan symbols
+            <input id="scannerSymbols" type="text" value="2330, 2317, 2454, 2303, 2308, 2382, 0050, 0056, 00878, 006208" spellcheck="false">
+          </label>
+          <label>
+            Minimum score
+            <input id="scannerMinScore" type="number" min="0" max="100" step="1" value="0">
+          </label>
+          <label>
+            Signal
+            <select id="scannerSignal">
+              <option value="all">All signals</option>
+              <option value="bull">Bullish only</option>
+              <option value="neutral">Neutral only</option>
+              <option value="bear">Weak only</option>
+            </select>
+          </label>
+          <label>
+            Sort by
+            <select id="scannerSort">
+              <option value="scoreDesc">Score high to low</option>
+              <option value="changeDesc">Change high to low</option>
+              <option value="rrDesc">Risk/reward high to low</option>
+              <option value="symbolAsc">Symbol A to Z</option>
+            </select>
+          </label>
         </div>
         <div class="scanner-wrap">
           <table class="data-table scanner-table">
@@ -157,11 +188,13 @@
                 <th>Price</th>
                 <th>Change</th>
                 <th>Score</th>
+                <th>R/R</th>
                 <th>Signal</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody id="scannerBody">
-              <tr><td colspan="6">Press scan to analyze common Taiwan stocks and ETFs.</td></tr>
+              <tr><td colspan="8">Press scan to analyze your symbol list.</td></tr>
             </tbody>
           </table>
         </div>

@@ -15,6 +15,7 @@
     data: null,
     analysis: null,
     chartMode: "line",
+    scannerRows: [],
     watchlist: JSON.parse(localStorage.getItem("stockPilotWatchlist") || "[]")
   };
 
@@ -29,7 +30,11 @@
     priceChart: $("#priceChart"),
     equityChart: $("#equityChart"),
     watchBtn: $("#watchBtn"),
-    scanBtn: $("#scanBtn")
+    scanBtn: $("#scanBtn"),
+    scannerSymbols: $("#scannerSymbols"),
+    scannerMinScore: $("#scannerMinScore"),
+    scannerSignal: $("#scannerSignal"),
+    scannerSort: $("#scannerSort")
   };
 
   function normalizeSymbol(raw) {
@@ -38,6 +43,17 @@
     if (value.endsWith(".TW") || value.endsWith(".TWO")) return value;
     if (/^\d{4,6}[A-Z]?$/.test(value)) return `${value}.TW`;
     return value;
+  }
+
+  function parseScannerSymbols() {
+    const source = elements.scannerSymbols.value.trim() || popularSymbols.join(",");
+    const unique = new Set();
+    source
+      .split(/[\s,;]+/)
+      .map(item => item.trim())
+      .filter(Boolean)
+      .forEach(item => unique.add(normalizeSymbol(item)));
+    return [...unique].slice(0, 30);
   }
 
   function bareSymbol(symbol) {
@@ -454,18 +470,45 @@
   async function scanMarket() {
     elements.scanBtn.disabled = true;
     const body = $("#scannerBody");
-    body.innerHTML = `<tr><td colspan="6">Scanning...</td></tr>`;
+    body.innerHTML = `<tr><td colspan="8">Scanning...</td></tr>`;
     const rows = [];
-    for (const raw of popularSymbols) {
-      const symbol = normalizeSymbol(raw);
+    const symbols = parseScannerSymbols();
+    if (!symbols.length) {
+      body.innerHTML = `<tr><td colspan="8">Add at least one symbol to scan.</td></tr>`;
+      elements.scanBtn.disabled = false;
+      return;
+    }
+
+    for (const symbol of symbols) {
       let data;
       try { data = await fetchStockData(symbol); }
       catch { data = makeFallbackData(symbol); }
       const analysis = StockStrategy.scoreData(data);
-      rows.push({ data, analysis });
-      body.innerHTML = rows.map(scannerRow).join("");
+      rows.push({ data, analysis, scannedAt: new Date() });
+      state.scannerRows = rows;
+      renderScannerRows();
     }
     elements.scanBtn.disabled = false;
+  }
+
+  function renderScannerRows() {
+    const body = $("#scannerBody");
+    const minScore = Number(elements.scannerMinScore.value) || 0;
+    const signal = elements.scannerSignal.value;
+    const sortBy = elements.scannerSort.value;
+    const rows = state.scannerRows
+      .filter(row => row.analysis.score >= minScore)
+      .filter(row => signal === "all" || row.analysis.tone === signal)
+      .sort((a, b) => {
+        if (sortBy === "changeDesc") return b.data.changePct - a.data.changePct;
+        if (sortBy === "rrDesc") return b.analysis.targets.riskReward - a.analysis.targets.riskReward;
+        if (sortBy === "symbolAsc") return bareSymbol(a.data.symbol).localeCompare(bareSymbol(a.data.symbol));
+        return b.analysis.score - a.analysis.score;
+      });
+
+    body.innerHTML = rows.length
+      ? rows.map(scannerRow).join("")
+      : `<tr><td colspan="8">No symbols match the current filters.</td></tr>`;
   }
 
   function scannerRow(row) {
@@ -473,13 +516,15 @@
     const analysis = row.analysis;
     const signalClass = analysis.tone === "bull" ? "up" : analysis.tone === "bear" ? "down" : "flat";
     return `
-      <tr>
+      <tr data-symbol="${data.symbol}">
         <td><strong>${bareSymbol(data.symbol)}</strong></td>
         <td>${data.name}</td>
         <td>${data.currency}${fmt.format(data.currentPrice)}</td>
         <td class="${data.changePct >= 0 ? "up" : "down"}">${pct(data.changePct)}</td>
         <td>${analysis.score.toFixed(0)}</td>
+        <td>${analysis.targets.riskReward.toFixed(2)}</td>
         <td class="${signalClass}">${analysis.verdict}</td>
+        <td><button class="mini-action" type="button" data-analyze="${data.symbol}">Open</button></td>
       </tr>
     `;
   }
@@ -514,6 +559,13 @@
     }
   });
 
+  $("#scannerBody").addEventListener("click", event => {
+    const symbol = event.target.dataset.analyze || event.target.closest("tr")?.dataset.symbol;
+    if (!symbol) return;
+    elements.input.value = bareSymbol(symbol);
+    analyze(symbol);
+  });
+
   elements.analyzeBtn.addEventListener("click", () => analyze());
   elements.input.addEventListener("keydown", event => { if (event.key === "Enter") analyze(); });
   elements.range.addEventListener("change", () => { if (elements.input.value.trim()) analyze(); });
@@ -522,6 +574,10 @@
   $("#runBacktestBtn").addEventListener("click", renderBacktest);
   elements.watchBtn.addEventListener("click", toggleWatch);
   elements.scanBtn.addEventListener("click", scanMarket);
+  [elements.scannerMinScore, elements.scannerSignal, elements.scannerSort].forEach(control => {
+    control.addEventListener("input", renderScannerRows);
+    control.addEventListener("change", renderScannerRows);
+  });
   window.addEventListener("resize", () => { if (state.data) renderAll(); });
 
   renderWatchlist();
