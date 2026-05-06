@@ -2,12 +2,30 @@
   const $ = selector => document.querySelector(selector);
   const fmt = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 });
   const pct = value => `${value >= 0 ? "+" : ""}${(value * 100).toFixed(2)}%`;
+  const text = {
+    loading: "\u6b63\u5728\u8b80\u53d6\u50f9\u683c\u8cc7\u6599",
+    fallback: "\u5373\u6642\u8cc7\u6599\u88ab\u963b\u64cb\u6216\u66ab\u6642\u7121\u6cd5\u4f7f\u7528\uff0c\u5df2\u6539\u7528\u672c\u6a5f\u6a21\u64ec\u8cc7\u6599\u3002",
+    failed: "\u5206\u6790\u5931\u6557\uff0c\u8acb\u78ba\u8a8d\u4ee3\u865f\u662f\u5426\u6b63\u78ba\u3002",
+    confidence: "\u4fe1\u5fc3",
+    score: "\u5206\u6578",
+    highVol: "\u9ad8\u6ce2\u52d5",
+    bullStructure: "\u591a\u982d\u7d50\u69cb",
+    weakStructure: "\u5f31\u52e2\u6574\u7406",
+    rangeWatch: "\u76e4\u6574\u89c0\u5bdf",
+    add: "\u52a0\u5165",
+    remove: "\u79fb\u9664",
+    emptyWatch: "\u9084\u6c92\u6709\u89c0\u5bdf\u6a19\u7684\u3002\u5206\u6790\u5f8c\u53ef\u52a0\u5165\u6e05\u55ae\u3002",
+    scanning: "\u6383\u63cf\u4e2d...",
+    needSymbol: "\u81f3\u5c11\u8f38\u5165\u4e00\u500b\u4ee3\u865f\u624d\u80fd\u6383\u63cf\u3002",
+    noMatch: "\u6c92\u6709\u7b26\u5408\u76ee\u524d\u7be9\u9078\u689d\u4ef6\u7684\u6a19\u7684\u3002",
+    open: "\u958b\u555f"
+  };
 
   const names = {
-    "2330": "TSMC Taiwan", "2317": "Hon Hai", "2454": "MediaTek", "2303": "UMC", "2308": "Delta Electronics",
-    "2412": "Chunghwa Telecom", "2382": "Quanta", "2357": "ASUS", "2881": "Fubon Financial", "2882": "Cathay Financial",
-    "0050": "Yuanta Taiwan 50", "0056": "Yuanta High Dividend", "00878": "Cathay Sustainable High Dividend", "006208": "Fubon Taiwan 50",
-    "00919": "Capital Taiwan Select High Dividend", "AAPL": "Apple", "MSFT": "Microsoft", "NVDA": "NVIDIA", "TSLA": "Tesla"
+    "2330": "\u53f0\u7a4d\u96fb", "2317": "\u9d3b\u6d77", "2454": "\u806f\u767c\u79d1", "2303": "\u806f\u96fb", "2308": "\u53f0\u9054\u96fb",
+    "2412": "\u4e2d\u83ef\u96fb", "2382": "\u5ee3\u9054", "2357": "\u83ef\u78a9", "2881": "\u5bcc\u90a6\u91d1", "2882": "\u570b\u6cf0\u91d1",
+    "0050": "\u5143\u5927\u53f0\u706350", "0056": "\u5143\u5927\u9ad8\u80a1\u606f", "00878": "\u570b\u6cf0\u6c38\u7e8c\u9ad8\u80a1\u606f", "006208": "\u5bcc\u90a6\u53f050",
+    "00919": "\u7fa4\u76ca\u53f0\u7063\u7cbe\u9078\u9ad8\u606f", "AAPL": "Apple", "MSFT": "Microsoft", "NVDA": "NVIDIA", "TSLA": "Tesla"
   };
 
   const popularSymbols = ["2330", "2317", "2454", "2303", "2308", "2382", "0050", "0056", "00878", "006208"];
@@ -100,9 +118,20 @@
     throw lastError || new Error("Data source did not respond");
   }
 
+  async function fetchYahooChart(symbol) {
+    const range = elements.range.value;
+    const interval = "1d";
+    const backendUrl = `/api/yahoo?symbol=${encodeURIComponent(symbol)}&range=${encodeURIComponent(range)}&interval=${interval}`;
+    try {
+      return await fetchJson(backendUrl);
+    } catch {
+      const yahooUrl = `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=${range}&interval=${interval}&includeAdjustedClose=true`;
+      return fetchJson(yahooUrl);
+    }
+  }
+
   async function fetchStockData(symbol) {
-    const url = `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=${elements.range.value}&interval=1d&includeAdjustedClose=true`;
-    const json = await fetchJson(url);
+    const json = await fetchYahooChart(symbol);
     const result = json?.chart?.result?.[0];
     if (!result?.timestamp?.length) throw new Error("No price data found");
 
@@ -181,7 +210,7 @@
     }
 
     elements.analyzeBtn.disabled = true;
-    showStatus(`Loading price data for ${symbol}...`);
+    showStatus(`${text.loading} ${symbol}...`);
 
     try {
       let data;
@@ -190,7 +219,7 @@
         hideStatus();
       } catch {
         data = makeFallbackData(symbol);
-        showStatus(`Live data is blocked or unavailable. Using local simulated data for ${symbol}.`);
+        showStatus(`${text.fallback} (${symbol})`);
       }
 
       state.data = data;
@@ -200,7 +229,7 @@
       renderAll();
       elements.result.scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (error) {
-      showStatus(error.message || "Analysis failed. Please check the symbol.", true);
+      showStatus(error.message || text.failed, true);
     } finally {
       elements.analyzeBtn.disabled = false;
     }
@@ -228,13 +257,13 @@
     const card = $("#verdictCard");
     card.className = `verdict-card ${analysis.tone}`;
     $("#verdictText").textContent = analysis.verdict;
-    $("#confidenceText").textContent = `Confidence ${analysis.confidence.toFixed(0)} / Score ${analysis.score.toFixed(0)}`;
+    $("#confidenceText").textContent = `${text.confidence} ${analysis.confidence.toFixed(0)} / ${text.score} ${analysis.score.toFixed(0)}`;
     $("#confidenceMeter").style.width = `${analysis.score.toFixed(0)}%`;
     $("#verdictReason").textContent = analysis.reason;
 
     const regime = $("#regimeBadge");
     const vol = analysis.indicators.volatility;
-    regime.textContent = vol > 0.45 ? "High volatility" : analysis.score > 65 ? "Bull structure" : analysis.score < 42 ? "Weak structure" : "Range watch";
+    regime.textContent = vol > 0.45 ? text.highVol : analysis.score > 65 ? text.bullStructure : analysis.score < 42 ? text.weakStructure : text.rangeWatch;
     regime.className = `pill ${vol > 0.45 ? "warn" : analysis.score > 65 ? "good" : analysis.score < 42 ? "bad" : ""}`;
   }
 
@@ -256,12 +285,12 @@
     rr.textContent = `R/R ${targets.riskReward.toFixed(2)}`;
     rr.className = `pill ${targets.riskReward >= 1.6 ? "good" : targets.riskReward >= 1 ? "warn" : "bad"}`;
     $("#targetTable").innerHTML = `
-      <tr><td>Target 1</td><td><strong>${money(targets.target1)}</strong></td><td>About ${pct(targets.target1 / data.currentPrice - 1)}</td></tr>
-      <tr><td>Target 2</td><td><strong>${money(targets.target2)}</strong></td><td>Momentum extension</td></tr>
-      <tr><td>Stop reference</td><td><strong>${money(targets.stopLoss)}</strong></td><td>${pct(targets.stopLoss / data.currentPrice - 1)}</td></tr>
-      <tr><td>Support / resistance</td><td><strong>${money(targets.support)} - ${money(targets.resistance)}</strong></td><td>ATR and Bollinger estimate</td></tr>
-      <tr><td>1-month scenario</td><td><strong>${money(targets.monthLow)} - ${money(targets.monthHigh)}</strong></td><td>Short-term range</td></tr>
-      <tr><td>6-month scenario</td><td><strong>${money(targets.halfYearLow)} - ${money(targets.halfYearHigh)}</strong></td><td>Volatility projection</td></tr>
+      <tr><td>\u7b2c\u4e00\u76ee\u6a19</td><td><strong>${money(targets.target1)}</strong></td><td>\u7d04 ${pct(targets.target1 / data.currentPrice - 1)}</td></tr>
+      <tr><td>\u7b2c\u4e8c\u76ee\u6a19</td><td><strong>${money(targets.target2)}</strong></td><td>\u52d5\u80fd\u5ef6\u4f38\u60c5\u5883</td></tr>
+      <tr><td>\u505c\u640d\u53c3\u8003</td><td><strong>${money(targets.stopLoss)}</strong></td><td>${pct(targets.stopLoss / data.currentPrice - 1)}</td></tr>
+      <tr><td>\u652f\u6490 / \u58d3\u529b</td><td><strong>${money(targets.support)} - ${money(targets.resistance)}</strong></td><td>ATR + Bollinger</td></tr>
+      <tr><td>1 \u500b\u6708\u60c5\u5883</td><td><strong>${money(targets.monthLow)} - ${money(targets.monthHigh)}</strong></td><td>\u77ed\u7dda\u6ce2\u52d5\u5340\u9593</td></tr>
+      <tr><td>6 \u500b\u6708\u60c5\u5883</td><td><strong>${money(targets.halfYearLow)} - ${money(targets.halfYearHigh)}</strong></td><td>\u5e74\u5316\u6ce2\u52d5\u63a8\u4f30</td></tr>
     `;
     renderProfitLoss();
   }
@@ -279,7 +308,7 @@
     const tp = targets.target1 / cost - 1;
     const sl = targets.stopLoss / cost - 1;
     box.classList.remove("hidden");
-    box.innerHTML = `Cost basis ${data.currency}${fmt.format(cost)}: current P/L <strong class="${now >= 0 ? "up" : "down"}">${pct(now)}</strong>, target 1 P/L <strong class="${tp >= 0 ? "up" : "down"}">${pct(tp)}</strong>, stop P/L <strong class="${sl >= 0 ? "up" : "down"}">${pct(sl)}</strong>.`;
+    box.innerHTML = `\u9032\u5834\u6210\u672c ${data.currency}${fmt.format(cost)}: \u76ee\u524d\u640d\u76ca <strong class="${now >= 0 ? "up" : "down"}">${pct(now)}</strong>, \u7b2c\u4e00\u76ee\u6a19\u640d\u76ca <strong class="${tp >= 0 ? "up" : "down"}">${pct(tp)}</strong>, \u505c\u640d\u640d\u76ca <strong class="${sl >= 0 ? "up" : "down"}">${pct(sl)}</strong>.`;
   }
 
   function drawPriceChart(canvas, data, mode = "line") {
@@ -400,7 +429,7 @@
   }
 
   function drawLegend(ctx, width) {
-    const items = [["Price", "#22d3ee"], ["MA20", "#f59e0b"], ["MA60", "#8b5cf6"]];
+    const items = [["\u50f9\u683c", "#22d3ee"], ["MA20", "#f59e0b"], ["MA60", "#8b5cf6"]];
     ctx.font = "12px Inter";
     ctx.textAlign = "left";
     items.forEach((item, index) => {
@@ -416,11 +445,11 @@
     const result = StockStrategy.runBacktest(state.data, elements.strategy.value);
     drawEquityChart(elements.equityChart, result);
     $("#backtestMetrics").innerHTML = [
-      ["Total return", pct(result.metrics.totalReturn), result.metrics.totalReturn >= 0 ? "up" : "down"],
-      ["CAGR", pct(result.metrics.cagr), result.metrics.cagr >= 0 ? "up" : "down"],
-      ["Win rate", `${(result.metrics.winRate * 100).toFixed(1)}%`, ""],
-      ["Max drawdown", pct(result.metrics.maxDrawdown), "down"],
-      ["Trades", result.metrics.tradeCount, ""]
+      ["\u7e3d\u5831\u916c", pct(result.metrics.totalReturn), result.metrics.totalReturn >= 0 ? "up" : "down"],
+      ["\u5e74\u5316", pct(result.metrics.cagr), result.metrics.cagr >= 0 ? "up" : "down"],
+      ["\u52dd\u7387", `${(result.metrics.winRate * 100).toFixed(1)}%`, ""],
+      ["\u6700\u5927\u56de\u64a4", pct(result.metrics.maxDrawdown), "down"],
+      ["\u4ea4\u6613\u6578", result.metrics.tradeCount, ""]
     ].map(item => `<div class="metric"><span>${item[0]}</span><strong class="${item[2]}">${item[1]}</strong></div>`).join("");
   }
 
@@ -443,17 +472,17 @@
 
   function renderWatchlist() {
     const exists = state.data && state.watchlist.some(item => item.symbol === state.data.symbol);
-    elements.watchBtn.textContent = exists ? "Remove" : "Add";
+    elements.watchBtn.textContent = exists ? text.remove : text.add;
     const wrap = $("#watchlist");
     if (!state.watchlist.length) {
-      wrap.innerHTML = `<p class="muted">No watchlist symbols yet. Analyze a symbol, then add it here.</p>`;
+      wrap.innerHTML = `<p class="muted">${text.emptyWatch}</p>`;
       return;
     }
     wrap.innerHTML = state.watchlist.map(item => `
       <div class="watch-item">
         <strong>${item.name}</strong>
         <button type="button" data-load="${item.symbol}">${bareSymbol(item.symbol)}</button>
-        <button type="button" data-remove="${item.symbol}">Remove</button>
+        <button type="button" data-remove="${item.symbol}">${text.remove}</button>
       </div>
     `).join("");
   }
@@ -470,11 +499,11 @@
   async function scanMarket() {
     elements.scanBtn.disabled = true;
     const body = $("#scannerBody");
-    body.innerHTML = `<tr><td colspan="8">Scanning...</td></tr>`;
+    body.innerHTML = `<tr><td colspan="8">${text.scanning}</td></tr>`;
     const rows = [];
     const symbols = parseScannerSymbols();
     if (!symbols.length) {
-      body.innerHTML = `<tr><td colspan="8">Add at least one symbol to scan.</td></tr>`;
+      body.innerHTML = `<tr><td colspan="8">${text.needSymbol}</td></tr>`;
       elements.scanBtn.disabled = false;
       return;
     }
@@ -508,7 +537,7 @@
 
     body.innerHTML = rows.length
       ? rows.map(scannerRow).join("")
-      : `<tr><td colspan="8">No symbols match the current filters.</td></tr>`;
+      : `<tr><td colspan="8">${text.noMatch}</td></tr>`;
   }
 
   function scannerRow(row) {
@@ -524,7 +553,7 @@
         <td>${analysis.score.toFixed(0)}</td>
         <td>${analysis.targets.riskReward.toFixed(2)}</td>
         <td class="${signalClass}">${analysis.verdict}</td>
-        <td><button class="mini-action" type="button" data-analyze="${data.symbol}">Open</button></td>
+        <td><button class="mini-action" type="button" data-analyze="${data.symbol}">${text.open}</button></td>
       </tr>
     `;
   }

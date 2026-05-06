@@ -139,13 +139,13 @@
     const bbScore = clamp(55 + (0.5 - Math.abs(bbPosition - 0.55)) * 60, 0, 100);
 
     const factors = [
-      { key: "trend", name: "Trend", score: trend },
-      { key: "momentum", name: "Momentum", score: momentum },
+      { key: "trend", name: "\u8da8\u52e2", score: trend },
+      { key: "momentum", name: "\u52d5\u80fd", score: momentum },
       { key: "rsi", name: "RSI", score: rsiScore },
       { key: "macd", name: "MACD", score: macdScore },
-      { key: "volume", name: "Volume", score: volumeScore },
-      { key: "volatility", name: "Volatility", score: riskScore },
-      { key: "bands", name: "Band position", score: bbScore }
+      { key: "volume", name: "\u91cf\u80fd", score: volumeScore },
+      { key: "volatility", name: "\u6ce2\u52d5\u98a8\u96aa", score: riskScore },
+      { key: "bands", name: "\u901a\u9053\u4f4d\u7f6e", score: bbScore }
     ];
 
     const weights = { trend: 0.2, momentum: 0.18, rsi: 0.14, macd: 0.14, volume: 0.12, volatility: 0.12, bands: 0.1 };
@@ -154,12 +154,12 @@
     const support = Math.min(latestBB.lower || price - atrValue * 2, price - atrValue * 1.35);
     const resistance = Math.max(latestBB.upper || price + atrValue * 2, price + atrValue * 1.55);
 
-    let verdict = "Neutral";
+    let verdict = "\u4e2d\u6027\u89c0\u671b";
     let tone = "neutral";
-    if (score >= 72) { verdict = "Bullish"; tone = "bull"; }
-    if (score >= 84) { verdict = "Strong bullish"; tone = "bull"; }
-    if (score <= 42) { verdict = "Weak"; tone = "bear"; }
-    if (score <= 30) { verdict = "High risk"; tone = "bear"; }
+    if (score >= 72) { verdict = "\u504f\u591a"; tone = "bull"; }
+    if (score >= 84) { verdict = "\u5f37\u52e2\u504f\u591a"; tone = "bull"; }
+    if (score <= 42) { verdict = "\u504f\u5f31"; tone = "bear"; }
+    if (score <= 30) { verdict = "\u98a8\u96aa\u504f\u9ad8"; tone = "bear"; }
 
     const confidence = clamp(52 + Math.abs(score - 50) * 0.78 + Math.max(0, 18 - volatilityValue * 100), 45, 94);
     const target1 = price + atrValue * (score >= 50 ? 1.8 : 1.0);
@@ -201,14 +201,14 @@
 
   function makeReason(score, rsiValue, trendBase, volumeRatio, volatilityValue) {
     const parts = [];
-    parts.push(score >= 60 ? "trend score is above neutral" : score <= 45 ? "trend and momentum are still defensive" : "bull and bear signals are balanced");
-    if (rsiValue >= 70) parts.push("RSI is hot, so chase risk is higher");
-    else if (rsiValue <= 35) parts.push("RSI is near a rebound zone");
-    else parts.push("RSI is in a healthy middle range");
-    if (trendBase > 0.05) parts.push("price is above the medium-term average");
-    if (volumeRatio > 1.25) parts.push("volume is above recent average");
-    if (volatilityValue > 0.45) parts.push("annualized volatility is elevated");
-    return parts.join(", ") + ".";
+    parts.push(score >= 60 ? "\u8da8\u52e2\u5206\u6578\u9ad8\u65bc\u4e2d\u4f4d\u6578" : score <= 45 ? "\u8da8\u52e2\u8207\u52d5\u80fd\u4ecd\u504f\u4fdd\u5b88" : "\u591a\u7a7a\u8a0a\u865f\u63a5\u8fd1\u5e73\u8861");
+    if (rsiValue >= 70) parts.push("RSI \u504f\u71b1\uff0c\u77ed\u7dda\u8ffd\u50f9\u98a8\u96aa\u63d0\u9ad8");
+    else if (rsiValue <= 35) parts.push("RSI \u63a5\u8fd1\u53cd\u5f48\u89c0\u5bdf\u5340");
+    else parts.push("RSI \u4f4d\u65bc\u5065\u5eb7\u4e2d\u6bb5");
+    if (trendBase > 0.05) parts.push("\u50f9\u683c\u7ad9\u4e0a\u4e2d\u671f\u5747\u7dda");
+    if (volumeRatio > 1.25) parts.push("\u6210\u4ea4\u91cf\u9ad8\u65bc\u8fd1\u671f\u5e73\u5747");
+    if (volatilityValue > 0.45) parts.push("\u5e74\u5316\u6ce2\u52d5\u504f\u9ad8\uff0c\u505c\u640d\u8ddd\u96e2\u8981\u4fdd\u5b88");
+    return parts.join("\uff0c") + "\u3002";
   }
 
   function runBacktest(data, strategyType = "ensemble", initialCapital = 100000) {

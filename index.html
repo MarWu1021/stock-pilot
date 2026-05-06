@@ -1,13 +1,13 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Stock Pilot | Forecast Dashboard</title>
-  <meta name="description" content="A stock research dashboard with technical scoring, price scenarios, watchlist, scanner, and simple backtests.">
+  <title>Stock Pilot | &#32929;&#24066;&#38928;&#28204;&#20736;&#34920;&#26495;</title>
+  <meta name="description" content="Stock research dashboard with technical scoring, price scenarios, watchlist, scanner, and simple backtests.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
 </head>
@@ -15,23 +15,23 @@
   <header class="app-header">
     <div>
       <p class="eyebrow">Stock Pilot</p>
-      <h1>Forecast Dashboard</h1>
+      <h1>&#32929;&#24066;&#38928;&#28204;&#20736;&#34920;&#26495;</h1>
     </div>
-    <p class="header-note">Technical score, volatility, price scenarios, scanner, watchlist, and simple backtests. Research only, not financial advice.</p>
+    <p class="header-note">&#25972;&#21512;&#25216;&#34899;&#38754;&#20998;&#25976;&#12289;&#27874;&#21205;&#39080;&#38570;&#12289;&#24773;&#22659;&#20729;&#26684;&#12289;&#24066;&#22580;&#25475;&#25551;&#12289;&#35264;&#23519;&#28165;&#21934;&#33287;&#31777;&#26131;&#22238;&#28204;&#12290;&#20677;&#20379;&#30740;&#31350;&#21443;&#32771;&#65292;&#38750;&#25237;&#36039;&#24314;&#35696;&#12290;</p>
   </header>
 
   <main class="shell">
     <section class="tool-panel">
       <div class="search-row">
-        <input id="stockInput" class="stock-input" value="2330" placeholder="Enter symbol, e.g. 2330, 0050, AAPL, NVDA" spellcheck="false">
-        <button id="analyzeBtn" class="primary-btn" type="button">Analyze</button>
+        <input id="stockInput" class="stock-input" value="2330" placeholder="&#36664;&#20837;&#20195;&#34399;&#65292;&#20363;&#22914; 2330&#12289;0050&#12289;AAPL&#12289;NVDA" spellcheck="false">
+        <button id="analyzeBtn" class="primary-btn" type="button">&#20998;&#26512;</button>
       </div>
       <div class="quick-picks" aria-label="Quick picks">
-        <span>Popular</span>
-        <button type="button" data-symbol="2330">TSMC</button>
-        <button type="button" data-symbol="2317">Hon Hai</button>
-        <button type="button" data-symbol="2454">MediaTek</button>
-        <button type="button" data-symbol="2303">UMC</button>
+        <span>&#24120;&#29992;</span>
+        <button type="button" data-symbol="2330">&#21488;&#31309;&#38651;</button>
+        <button type="button" data-symbol="2317">&#40251;&#28023;</button>
+        <button type="button" data-symbol="2454">&#32879;&#30332;&#31185;</button>
+        <button type="button" data-symbol="2303">&#32879;&#38651;</button>
         <button type="button" data-symbol="0050">0050</button>
         <button type="button" data-symbol="00878">00878</button>
         <button type="button" data-symbol="NVDA">NVDA</button>
@@ -39,26 +39,26 @@
       </div>
       <div class="control-grid">
         <label>
-          Range
+          &#26399;&#38291;
           <select id="rangeSelect">
-            <option value="3mo">3 months</option>
-            <option value="6mo">6 months</option>
-            <option value="1y" selected>1 year</option>
-            <option value="2y">2 years</option>
-            <option value="5y">5 years</option>
+            <option value="3mo">3 &#20491;&#26376;</option>
+            <option value="6mo">6 &#20491;&#26376;</option>
+            <option value="1y" selected>1 &#24180;</option>
+            <option value="2y">2 &#24180;</option>
+            <option value="5y">5 &#24180;</option>
           </select>
         </label>
         <label>
-          Cost basis
-          <input id="costInput" type="number" min="0" step="0.01" placeholder="Optional">
+          &#36914;&#22580;&#25104;&#26412;
+          <input id="costInput" type="number" min="0" step="0.01" placeholder="&#21487;&#36984;&#22635;">
         </label>
         <label>
-          Backtest strategy
+          &#22238;&#28204;&#31574;&#30053;
           <select id="strategySelect">
-            <option value="ensemble">Composite score</option>
-            <option value="maCross">MA cross</option>
-            <option value="rsiRebound">RSI rebound</option>
-            <option value="trendRide">Trend ride</option>
+            <option value="ensemble">&#32156;&#21512;&#20998;&#25976;</option>
+            <option value="maCross">&#22343;&#32218;&#20132;&#21449;</option>
+            <option value="rsiRebound">RSI &#21453;&#24392;</option>
+            <option value="trendRide">&#36264;&#21218;&#25345;&#26377;</option>
           </select>
         </label>
       </div>
@@ -70,7 +70,7 @@
       <div class="summary-grid">
         <article class="identity-card">
           <div>
-            <p class="card-label">Symbol</p>
+            <p class="card-label">&#27161;&#30340;</p>
             <h2 id="stockName">--</h2>
             <p id="stockSymbol" class="mono">--</p>
           </div>
@@ -81,7 +81,7 @@
         </article>
 
         <article id="verdictCard" class="verdict-card">
-          <p class="card-label">Technical outlook</p>
+          <p class="card-label">&#25216;&#34899;&#38754;&#32080;&#35542;</p>
           <div class="verdict-line">
             <strong id="verdictText">--</strong>
             <span id="confidenceText">--</span>
@@ -94,12 +94,12 @@
       <section class="chart-card">
         <div class="section-head">
           <div>
-            <p class="card-label">Price action</p>
-            <h3>Price and moving averages</h3>
+            <p class="card-label">&#20729;&#26684;&#36208;&#21218;</p>
+            <h3>&#20729;&#26684;&#33287;&#31227;&#21205;&#24179;&#22343;</h3>
           </div>
           <div class="segmented">
-            <button type="button" class="chart-mode active" data-mode="line">Line</button>
-            <button type="button" class="chart-mode" data-mode="candle">Candle</button>
+            <button type="button" class="chart-mode active" data-mode="line">&#32218;&#22294;</button>
+            <button type="button" class="chart-mode" data-mode="candle">K &#32218;</button>
           </div>
         </div>
         <canvas id="priceChart" height="320"></canvas>
@@ -108,7 +108,7 @@
       <section class="insight-grid">
         <article class="card">
           <div class="section-head compact">
-            <h3>Technical factors</h3>
+            <h3>&#25216;&#34899;&#25351;&#27161;</h3>
             <span id="regimeBadge" class="pill">--</span>
           </div>
           <div id="factorList" class="factor-list"></div>
@@ -116,7 +116,7 @@
 
         <article class="card">
           <div class="section-head compact">
-            <h3>Price scenarios</h3>
+            <h3>&#24773;&#22659;&#20729;&#26684;</h3>
             <span id="riskRewardBadge" class="pill">R/R --</span>
           </div>
           <table class="data-table">
@@ -127,8 +127,8 @@
 
         <article class="card">
           <div class="section-head compact">
-            <h3>Strategy backtest</h3>
-            <button id="runBacktestBtn" class="ghost-btn" type="button">Refresh</button>
+            <h3>&#31574;&#30053;&#22238;&#28204;</h3>
+            <button id="runBacktestBtn" class="ghost-btn" type="button">&#37325;&#26032;&#22238;&#28204;</button>
           </div>
           <canvas id="equityChart" height="170"></canvas>
           <div id="backtestMetrics" class="metric-grid"></div>
@@ -136,8 +136,8 @@
 
         <article class="card">
           <div class="section-head compact">
-            <h3>Watchlist</h3>
-            <button id="watchBtn" class="ghost-btn" type="button">Add</button>
+            <h3>&#35264;&#23519;&#28165;&#21934;</h3>
+            <button id="watchBtn" class="ghost-btn" type="button">&#21152;&#20837;</button>
           </div>
           <div id="watchlist" class="watchlist"></div>
         </article>
@@ -146,36 +146,36 @@
       <section class="card">
         <div class="section-head compact scanner-head">
           <div>
-            <h3>Market scanner</h3>
-            <p class="muted small">Build a watch universe, rank technical strength, and click a row to open full analysis.</p>
+            <h3>&#24066;&#22580;&#25475;&#25551;&#22120;</h3>
+            <p class="muted small">&#33258;&#35330;&#32929;&#31080;&#27744;&#65292;&#20381;&#25216;&#34899;&#38754;&#24375;&#24230;&#25490;&#21517;&#65292;&#40670;&#19968;&#21015;&#21487;&#30452;&#25509;&#38283;&#21855;&#23436;&#25972;&#20998;&#26512;&#12290;</p>
           </div>
-          <button id="scanBtn" class="ghost-btn" type="button">Scan list</button>
+          <button id="scanBtn" class="ghost-btn" type="button">&#25475;&#25551;&#28165;&#21934;</button>
         </div>
         <div class="scanner-controls">
           <label class="scanner-symbols">
-            Scan symbols
+            &#25475;&#25551;&#20195;&#34399;
             <input id="scannerSymbols" type="text" value="2330, 2317, 2454, 2303, 2308, 2382, 0050, 0056, 00878, 006208" spellcheck="false">
           </label>
           <label>
-            Minimum score
+            &#26368;&#20302;&#20998;&#25976;
             <input id="scannerMinScore" type="number" min="0" max="100" step="1" value="0">
           </label>
           <label>
-            Signal
+            &#35338;&#34399;
             <select id="scannerSignal">
-              <option value="all">All signals</option>
-              <option value="bull">Bullish only</option>
-              <option value="neutral">Neutral only</option>
-              <option value="bear">Weak only</option>
+              <option value="all">&#20840;&#37096;&#35338;&#34399;</option>
+              <option value="bull">&#20559;&#22810;</option>
+              <option value="neutral">&#20013;&#24615;</option>
+              <option value="bear">&#20559;&#24369;</option>
             </select>
           </label>
           <label>
-            Sort by
+            &#25490;&#24207;
             <select id="scannerSort">
-              <option value="scoreDesc">Score high to low</option>
-              <option value="changeDesc">Change high to low</option>
-              <option value="rrDesc">Risk/reward high to low</option>
-              <option value="symbolAsc">Symbol A to Z</option>
+              <option value="scoreDesc">&#20998;&#25976;&#39640;&#21040;&#20302;</option>
+              <option value="changeDesc">&#28466;&#36300;&#24133;&#39640;&#21040;&#20302;</option>
+              <option value="rrDesc">&#39080;&#38570;&#22577;&#37228;&#39640;&#21040;&#20302;</option>
+              <option value="symbolAsc">&#20195;&#34399; A &#21040; Z</option>
             </select>
           </label>
         </div>
@@ -183,24 +183,24 @@
           <table class="data-table scanner-table">
             <thead>
               <tr>
-                <th>Symbol</th>
-                <th>Name</th>
-                <th>Price</th>
-                <th>Change</th>
-                <th>Score</th>
+                <th>&#20195;&#34399;</th>
+                <th>&#21517;&#31281;</th>
+                <th>&#20729;&#26684;</th>
+                <th>&#28466;&#36300;</th>
+                <th>&#20998;&#25976;</th>
                 <th>R/R</th>
-                <th>Signal</th>
-                <th>Action</th>
+                <th>&#35338;&#34399;</th>
+                <th>&#25805;&#20316;</th>
               </tr>
             </thead>
             <tbody id="scannerBody">
-              <tr><td colspan="8">Press scan to analyze your symbol list.</td></tr>
+              <tr><td colspan="8">&#25353;&#19979;&#25475;&#25551;&#24460;&#26371;&#20998;&#26512;&#20320;&#30340;&#28165;&#21934;&#12290;</td></tr>
             </tbody>
           </table>
         </div>
       </section>
 
-      <p class="disclaimer">The app tries to read Yahoo Finance data. If the browser blocks the data source, local simulated data is used so the prototype remains testable. Scores, targets, and backtests are research signals only.</p>
+      <p class="disclaimer">&#26412;&#24037;&#20855;&#26371;&#20778;&#20808;&#22039;&#35430;&#20351;&#29992;&#24460;&#31471; Yahoo proxy&#65307;&#33509;&#24460;&#31471;&#25110;&#28687;&#35261;&#22120;&#38459;&#25811;&#36039;&#26009;&#28304;&#65292;&#26371;&#20351;&#29992;&#26412;&#27231;&#27169;&#25836;&#36039;&#26009;&#32173;&#25345;&#21407;&#22411;&#21487;&#28204;&#35430;&#12290;&#20998;&#25976;&#12289;&#30446;&#27161;&#20729;&#33287;&#22238;&#28204;&#37117;&#21482;&#26159;&#30740;&#31350;&#35338;&#34399;&#12290;</p>
     </section>
   </main>
 
