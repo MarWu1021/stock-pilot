@@ -172,9 +172,9 @@ label {
 }
 
 .status-box.error {
-  border-color: rgba(239, 68, 68, 0.35);
-  background: rgba(239, 68, 68, 0.1);
-  color: #fecaca;
+  border-color: rgba(245, 158, 11, 0.48);
+  background: rgba(245, 158, 11, 0.12);
+  color: #fde68a;
 }
 
 .hidden { display: none !important; }
@@ -202,6 +202,7 @@ label {
 }
 
 .mono { color: var(--muted); margin: 0; }
+.mono:has(+ *) { letter-spacing: 0; }
 
 .price-stack { text-align: right; }
 .price-stack strong { display: block; font-size: 36px; }

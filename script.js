@@ -5,6 +5,8 @@
   const text = {
     loading: "\u6b63\u5728\u8b80\u53d6\u50f9\u683c\u8cc7\u6599",
     fallback: "\u5373\u6642\u8cc7\u6599\u88ab\u963b\u64cb\u6216\u66ab\u6642\u7121\u6cd5\u4f7f\u7528\uff0c\u5df2\u6539\u7528\u672c\u6a5f\u6a21\u64ec\u8cc7\u6599\u3002",
+    simulatedBadge: "\u6a21\u64ec\u8cc7\u6599",
+    simulatedPrefix: "SIM",
     failed: "\u5206\u6790\u5931\u6557\uff0c\u8acb\u78ba\u8a8d\u4ee3\u865f\u662f\u5426\u6b63\u78ba\u3002",
     confidence: "\u4fe1\u5fc3",
     score: "\u5206\u6578",
@@ -149,7 +151,7 @@
     return buildData(symbol, rows);
   }
 
-  function buildData(symbol, rows) {
+  function buildData(symbol, rows, options = {}) {
     const closes = rows.map(row => row.close);
     const previous = closes[closes.length - 2] || closes[0];
     const current = closes[closes.length - 1];
@@ -166,7 +168,9 @@
       currentPrice: current,
       previousClose: previous,
       change: current - previous,
-      changePct: current / previous - 1
+      changePct: current / previous - 1,
+      isSimulated: Boolean(options.isSimulated),
+      source: options.source || "Yahoo Finance"
     };
   }
 
@@ -200,7 +204,7 @@
       const low = Math.min(open, price) * (1 - random() * 0.018);
       rows.push({ date, open, high, low, close: price, volume: Math.round((8000 + random() * 65000) * 1000) });
     }
-    return buildData(symbol, rows);
+    return buildData(symbol, rows, { isSimulated: true, source: "Local demo data" });
   }
 
   async function analyze(symbol = normalizeSymbol(elements.input.value)) {
@@ -219,7 +223,7 @@
         hideStatus();
       } catch {
         data = makeFallbackData(symbol);
-        showStatus(`${text.fallback} (${symbol})`);
+        showStatus(`${text.fallback} (${symbol})`, true);
       }
 
       state.data = data;
@@ -248,8 +252,8 @@
     const data = state.data;
     const analysis = state.analysis;
     $("#stockName").textContent = data.name;
-    $("#stockSymbol").textContent = data.symbol;
-    $("#currentPrice").textContent = `${data.currency}${fmt.format(data.currentPrice)}`;
+    $("#stockSymbol").textContent = data.isSimulated ? `${data.symbol} \u00b7 ${text.simulatedBadge}` : data.symbol;
+    $("#currentPrice").textContent = `${data.isSimulated ? `${text.simulatedPrefix} ` : ""}${data.currency}${fmt.format(data.currentPrice)}`;
     const change = $("#priceChange");
     change.textContent = `${data.change >= 0 ? "+" : ""}${fmt.format(data.change)} (${pct(data.changePct)})`;
     change.className = data.change > 0 ? "up" : data.change < 0 ? "down" : "flat";
@@ -280,7 +284,7 @@
   function renderTargets() {
     const data = state.data;
     const targets = state.analysis.targets;
-    const money = value => `${data.currency}${fmt.format(value)}`;
+    const money = value => `${data.isSimulated ? `${text.simulatedPrefix} ` : ""}${data.currency}${fmt.format(value)}`;
     const rr = $("#riskRewardBadge");
     rr.textContent = `R/R ${targets.riskReward.toFixed(2)}`;
     rr.className = `pill ${targets.riskReward >= 1.6 ? "good" : targets.riskReward >= 1 ? "warn" : "bad"}`;
@@ -548,11 +552,11 @@
       <tr data-symbol="${data.symbol}">
         <td><strong>${bareSymbol(data.symbol)}</strong></td>
         <td>${data.name}</td>
-        <td>${data.currency}${fmt.format(data.currentPrice)}</td>
+        <td>${data.isSimulated ? `${text.simulatedPrefix} ` : ""}${data.currency}${fmt.format(data.currentPrice)}</td>
         <td class="${data.changePct >= 0 ? "up" : "down"}">${pct(data.changePct)}</td>
         <td>${analysis.score.toFixed(0)}</td>
         <td>${analysis.targets.riskReward.toFixed(2)}</td>
-        <td class="${signalClass}">${analysis.verdict}</td>
+        <td class="${signalClass}">${analysis.verdict}${data.isSimulated ? ` \u00b7 ${text.simulatedPrefix}` : ""}</td>
         <td><button class="mini-action" type="button" data-analyze="${data.symbol}">${text.open}</button></td>
       </tr>
     `;
