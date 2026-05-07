@@ -1,5 +1,5 @@
-const ALLOWED_RANGES = new Set(["1mo", "3mo", "6mo", "1y", "2y", "5y"]);
-const ALLOWED_INTERVALS = new Set(["1d", "1wk", "1mo"]);
+const ALLOWED_RANGES = new Set(["1d", "5d", "1mo", "3mo", "6mo", "1y", "2y", "5y"]);
+const ALLOWED_INTERVALS = new Set(["1m", "5m", "15m", "1d", "1wk", "1mo"]);
 
 function sendJson(res, status, body) {
   res.status(status).json(body);
@@ -48,7 +48,10 @@ export default async function handler(req, res) {
       return;
     }
 
-    res.setHeader("Cache-Control", "s-maxage=60, stale-while-revalidate=300");
+    const cacheHeader = interval === "1m" || interval === "5m"
+      ? "s-maxage=15, stale-while-revalidate=30"
+      : "s-maxage=60, stale-while-revalidate=300";
+    res.setHeader("Cache-Control", cacheHeader);
     sendJson(res, 200, payload);
   } catch (error) {
     sendJson(res, 502, { error: "Yahoo request failed", details: error.message });

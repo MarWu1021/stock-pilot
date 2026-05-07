@@ -7,6 +7,7 @@
     fallback: "\u5373\u6642\u8cc7\u6599\u88ab\u963b\u64cb\u6216\u66ab\u6642\u7121\u6cd5\u4f7f\u7528\uff0c\u5df2\u6539\u7528\u672c\u6a5f\u6a21\u64ec\u8cc7\u6599\u3002",
     simulatedBadge: "\u6a21\u64ec\u8cc7\u6599",
     simulatedPrefix: "SIM",
+    liveMode: "\u5373\u6642\u2713 \u6bcf 60 \u79d2\u81ea\u52d5\u66f4\u65b0",
     failed: "\u5206\u6790\u5931\u6557\uff0c\u8acb\u78ba\u8a8d\u4ee3\u865f\u662f\u5426\u6b63\u78ba\u3002",
     confidence: "\u4fe1\u5fc3",
     score: "\u5206\u6578",
@@ -36,6 +37,7 @@
     analysis: null,
     chartMode: "line",
     scannerRows: [],
+    refreshTimer: null,
     watchlist: JSON.parse(localStorage.getItem("stockPilotWatchlist") || "[]")
   };
 
@@ -120,9 +122,19 @@
     throw lastError || new Error("Data source did not respond");
   }
 
+  function selectedInterval() {
+    if (elements.range.value === "1d") return "1m";
+    if (elements.range.value === "5d") return "5m";
+    return "1d";
+  }
+
+  function isLiveRange() {
+    return elements.range.value === "1d" || elements.range.value === "5d";
+  }
+
   async function fetchYahooChart(symbol) {
     const range = elements.range.value;
-    const interval = "1d";
+    const interval = selectedInterval();
     const backendUrl = `/api/yahoo?symbol=${encodeURIComponent(symbol)}&range=${encodeURIComponent(range)}&interval=${interval}`;
     try {
       return await fetchJson(backendUrl);
@@ -186,7 +198,7 @@
     const bare = bareSymbol(symbol);
     const seed = [...bare].reduce((sum, char) => sum + char.charCodeAt(0), 0);
     const random = seededRandom(seed || 42);
-    const days = elements.range.value === "5y" ? 980 : elements.range.value === "2y" ? 520 : elements.range.value === "3mo" ? 110 : 252;
+    const days = elements.range.value === "5y" ? 980 : elements.range.value === "2y" ? 520 : elements.range.value === "3mo" ? 110 : elements.range.value === "1d" ? 2 : 252;
     const base = bare.startsWith("00") ? 45 + random() * 70 : /^\d/.test(bare) ? 80 + random() * 650 : 90 + random() * 260;
     const trend = (random() - 0.43) / 420;
     let price = base;
@@ -231,12 +243,26 @@
       elements.input.value = bareSymbol(symbol);
       elements.result.classList.remove("hidden");
       renderAll();
+      configureAutoRefresh();
+      if (!data.isSimulated && isLiveRange()) showStatus(text.liveMode);
       elements.result.scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (error) {
       showStatus(error.message || text.failed, true);
     } finally {
       elements.analyzeBtn.disabled = false;
     }
+  }
+
+  function configureAutoRefresh() {
+    if (state.refreshTimer) {
+      clearInterval(state.refreshTimer);
+      state.refreshTimer = null;
+    }
+    if (!state.data || !isLiveRange()) return;
+    state.refreshTimer = setInterval(() => {
+      if (document.hidden || elements.analyzeBtn.disabled) return;
+      analyze(state.data.symbol);
+    }, 60000);
   }
 
   function renderAll() {
