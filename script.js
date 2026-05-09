@@ -80,7 +80,8 @@
     guardFrequency: $("#guardFrequency"),
     guardAddBtn: $("#guardAddBtn"),
     guardRunBtn: $("#guardRunBtn"),
-    notifyTestBtn: $("#notifyTestBtn")
+    notifyTestBtn: $("#notifyTestBtn"),
+    clearAlertsBtn: $("#clearAlertsBtn")
   };
 
   function normalizeSymbol(raw) {
@@ -616,7 +617,21 @@
 
   function removeGuardRule(symbol) {
     state.guardRules = state.guardRules.filter(item => item.symbol !== symbol);
+    state.guardAlerts = state.guardAlerts.filter(item => item.symbol !== symbol);
     saveGuardRules();
+    saveGuardAlerts();
+    renderGuardPanel();
+  }
+
+  function removeGuardAlert(index) {
+    state.guardAlerts.splice(index, 1);
+    saveGuardAlerts();
+    renderGuardPanel();
+  }
+
+  function clearGuardAlerts() {
+    state.guardAlerts = [];
+    saveGuardAlerts();
     renderGuardPanel();
   }
 
@@ -728,7 +743,9 @@
       const analysis = StockStrategy.scoreData(data);
       alerts.push(evaluateGuard(rule, data, analysis));
     }
-    state.guardAlerts = alerts.concat(state.guardAlerts).slice(0, 12);
+    state.guardAlerts = alerts
+      .concat(state.guardAlerts.filter(existing => !alerts.some(alert => alert.symbol === existing.symbol)))
+      .slice(0, 12);
     saveGuardAlerts();
     renderGuardPanel();
     $("#guardLastCheck").textContent = `\u6700\u5f8c\u6aa2\u67e5 ${new Date().toLocaleString("zh-TW", { hour12: false })}`;
@@ -770,11 +787,14 @@
       : `<p class="muted">${text.emptyGuard}</p>`;
 
     alerts.innerHTML = state.guardAlerts.length
-      ? state.guardAlerts.slice(0, 5).map(alert => `
+      ? state.guardAlerts.slice(0, 8).map((alert, index) => `
         <div class="guard-alert ${alert.tone}">
-          <strong>${alert.title} - ${alert.name} <span class="mono">${bareSymbol(alert.symbol)}</span></strong>
-          <p>${alert.simulated ? text.simulatedPrefix + " " : ""}${guardMoney(alert, alert.price)} (${pct(alert.changePct)}) \u00b7 ${alert.message}</p>
-          <p>\u96d9\u91cd\u6821\u9a57\uff1a\u5148\u8b80 AI \u7406\u7531\uff0c\u518d\u9ede\u9023\u7d50\u6838\u5c0d\u5373\u6642\u80a1\u50f9\uff0c\u6700\u5f8c\u81ea\u5df1\u6c7a\u5b9a\u3002</p>
+          <div>
+            <strong>${alert.title} - ${alert.name} <span class="mono">${bareSymbol(alert.symbol)}</span></strong>
+            <p>${alert.simulated ? text.simulatedPrefix + " " : ""}${guardMoney(alert, alert.price)} (${pct(alert.changePct)}) \u00b7 ${alert.message}</p>
+            <p>\u96d9\u91cd\u6821\u9a57\uff1a\u5148\u8b80 AI \u7406\u7531\uff0c\u518d\u9ede\u9023\u7d50\u6838\u5c0d\u5373\u6642\u80a1\u50f9\uff0c\u6700\u5f8c\u81ea\u5df1\u6c7a\u5b9a\u3002</p>
+          </div>
+          <button type="button" data-remove-alert="${index}">\u522a\u9664</button>
         </div>
       `).join("")
       : `<p class="muted">${text.emptyAlert}</p>`;
@@ -884,6 +904,11 @@
     if (symbol) removeGuardRule(symbol);
   });
 
+  $("#guardAlerts").addEventListener("click", event => {
+    const index = event.target.dataset.removeAlert;
+    if (index !== undefined) removeGuardAlert(Number(index));
+  });
+
   elements.analyzeBtn.addEventListener("click", () => analyze());
   elements.input.addEventListener("keydown", event => { if (event.key === "Enter") analyze(); });
   elements.range.addEventListener("change", () => { if (elements.input.value.trim()) analyze(); });
@@ -895,6 +920,7 @@
   elements.guardAddBtn.addEventListener("click", addGuardRule);
   elements.guardRunBtn.addEventListener("click", () => runGuardCheck());
   elements.notifyTestBtn.addEventListener("click", sendTestNotification);
+  elements.clearAlertsBtn.addEventListener("click", clearGuardAlerts);
   elements.guardFrequency.addEventListener("change", configureGuardTimer);
   [elements.scannerMinScore, elements.scannerSignal, elements.scannerSort].forEach(control => {
     control.addEventListener("input", renderScannerRows);

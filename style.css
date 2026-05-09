@@ -470,6 +470,16 @@ canvas {
   color: var(--text);
 }
 
+.guard-output-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.guard-output-head h4 { margin: 0; }
+
 .guard-rules, .guard-alerts {
   display: grid;
   gap: 8px;
@@ -483,17 +493,17 @@ canvas {
   border: 1px solid rgba(148, 163, 184, 0.12);
 }
 
-.guard-rule {
+.guard-rule, .guard-alert {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 8px;
-  align-items: center;
+  align-items: start;
 }
 
 .guard-rule strong, .guard-alert strong { display: block; margin-bottom: 4px; }
 .guard-rule p, .guard-alert p { margin: 0; color: var(--muted); line-height: 1.6; font-size: 13px; }
 
-.guard-rule button {
+.guard-rule button, .guard-alert button {
   border: 0;
   background: transparent;
   color: var(--red);
