@@ -21,7 +21,15 @@
     scanning: "\u6383\u63cf\u4e2d...",
     needSymbol: "\u81f3\u5c11\u8f38\u5165\u4e00\u500b\u4ee3\u865f\u624d\u80fd\u6383\u63cf\u3002",
     noMatch: "\u6c92\u6709\u7b26\u5408\u76ee\u524d\u7be9\u9078\u689d\u4ef6\u7684\u6a19\u7684\u3002",
-    open: "\u958b\u555f"
+    open: "\u958b\u555f",
+    emptyGuard: "\u9084\u6c92\u6709\u76ef\u76e4\u898f\u5247\u3002\u5148\u5206\u6790\u4e00\u6a94\u80a1\u7968\uff0c\u518d\u5132\u5b58\u76ee\u524d\u898f\u5247\u3002",
+    emptyAlert: "\u6309\u4e0b\u4e00\u9375\u6aa2\u67e5\u5f8c\uff0c\u9019\u88e1\u6703\u7522\u751f LINE \u901a\u77e5\u6458\u8981\u3002",
+    guardSaved: "\u5df2\u5132\u5b58\u76ef\u76e4\u898f\u5247",
+    guardChecking: "\u6b63\u5728\u6aa2\u67e5\u76ef\u76e4\u6e05\u55ae...",
+    guardDone: "\u76ef\u76e4\u6aa2\u67e5\u5b8c\u6210",
+    guardReady: "\u53ef\u5217\u5165\u89c0\u5bdf",
+    guardWatch: "\u7b49\u5f85\u689d\u4ef6",
+    guardDanger: "\u98a8\u96aa\u63d0\u9192"
   };
 
   const names = {
@@ -38,7 +46,11 @@
     chartMode: "line",
     scannerRows: [],
     refreshTimer: null,
-    watchlist: JSON.parse(localStorage.getItem("stockPilotWatchlist") || "[]")
+    guardTimer: null,
+    guardSyncedSymbol: null,
+    watchlist: JSON.parse(localStorage.getItem("stockPilotWatchlist") || "[]"),
+    guardRules: JSON.parse(localStorage.getItem("stockPilotGuardRules") || "[]"),
+    guardAlerts: JSON.parse(localStorage.getItem("stockPilotGuardAlerts") || "[]")
   };
 
   const elements = {
@@ -56,7 +68,15 @@
     scannerSymbols: $("#scannerSymbols"),
     scannerMinScore: $("#scannerMinScore"),
     scannerSignal: $("#scannerSignal"),
-    scannerSort: $("#scannerSort")
+    scannerSort: $("#scannerSort"),
+    guardEntry: $("#guardEntry"),
+    guardStop: $("#guardStop"),
+    guardTarget: $("#guardTarget"),
+    guardMinScore: $("#guardMinScore"),
+    guardMinRr: $("#guardMinRr"),
+    guardFrequency: $("#guardFrequency"),
+    guardAddBtn: $("#guardAddBtn"),
+    guardRunBtn: $("#guardRunBtn")
   };
 
   function normalizeSymbol(raw) {
@@ -198,11 +218,28 @@
     const bare = bareSymbol(symbol);
     const seed = [...bare].reduce((sum, char) => sum + char.charCodeAt(0), 0);
     const random = seededRandom(seed || 42);
-    const days = elements.range.value === "5y" ? 980 : elements.range.value === "2y" ? 520 : elements.range.value === "3mo" ? 110 : elements.range.value === "1d" ? 2 : 252;
+    const days = elements.range.value === "5y" ? 980 : elements.range.value === "2y" ? 520 : elements.range.value === "3mo" ? 110 : 252;
     const base = bare.startsWith("00") ? 45 + random() * 70 : /^\d/.test(bare) ? 80 + random() * 650 : 90 + random() * 260;
     const trend = (random() - 0.43) / 420;
     let price = base;
     const rows = [];
+
+    if (isLiveRange()) {
+      const bars = elements.range.value === "1d" ? 180 : 320;
+      const stepMinutes = elements.range.value === "1d" ? 1 : 5;
+      for (let i = bars; i >= 0; i--) {
+        const date = new Date();
+        date.setMinutes(date.getMinutes() - i * stepMinutes);
+        const cycle = Math.sin((bars - i) / 24) * 0.0018;
+        const shock = (random() - 0.5) * 0.0045;
+        const open = price;
+        price = Math.max(4, price * (1 + trend / 6 + cycle + shock));
+        const high = Math.max(open, price) * (1 + random() * 0.0025);
+        const low = Math.min(open, price) * (1 - random() * 0.0025);
+        rows.push({ date, open, high, low, close: price, volume: Math.round((100 + random() * 1400) * 1000) });
+      }
+      return buildData(symbol, rows, { isSimulated: true, source: "Local demo data" });
+    }
 
     for (let i = days; i >= 0; i--) {
       const date = new Date();
@@ -270,6 +307,8 @@
     drawPriceChart(elements.priceChart, state.data, state.chartMode);
     renderFactors();
     renderTargets();
+    syncGuardInputs();
+    renderGuardPanel();
     renderBacktest();
     renderWatchlist();
   }
@@ -526,6 +565,172 @@
     renderWatchlist();
   }
 
+  function saveGuardRules() {
+    localStorage.setItem("stockPilotGuardRules", JSON.stringify(state.guardRules));
+  }
+
+  function saveGuardAlerts() {
+    localStorage.setItem("stockPilotGuardAlerts", JSON.stringify(state.guardAlerts.slice(0, 12)));
+  }
+
+  function syncGuardInputs() {
+    if (!state.data || !state.analysis) return;
+    if (state.guardSyncedSymbol !== state.data.symbol) {
+      elements.guardEntry.value = state.data.currentPrice.toFixed(2);
+      elements.guardStop.value = state.analysis.targets.stopLoss.toFixed(2);
+      elements.guardTarget.value = state.analysis.targets.target1.toFixed(2);
+      state.guardSyncedSymbol = state.data.symbol;
+    }
+    $("#guardReason").textContent = state.analysis.reason;
+  }
+
+  function makeGuardRule() {
+    if (!state.data || !state.analysis) return null;
+    return {
+      symbol: state.data.symbol,
+      name: state.data.name,
+      entry: Number(elements.guardEntry.value) || null,
+      stop: Number(elements.guardStop.value) || state.analysis.targets.stopLoss,
+      target: Number(elements.guardTarget.value) || state.analysis.targets.target1,
+      minScore: Number(elements.guardMinScore.value) || 68,
+      minRr: Number(elements.guardMinRr.value) || 1.5,
+      reason: state.analysis.reason,
+      updatedAt: new Date().toISOString()
+    };
+  }
+
+  function addGuardRule() {
+    const rule = makeGuardRule();
+    if (!rule) return;
+    const index = state.guardRules.findIndex(item => item.symbol === rule.symbol);
+    if (index >= 0) state.guardRules[index] = rule;
+    else state.guardRules.push(rule);
+    saveGuardRules();
+    renderGuardPanel();
+    showStatus(`${text.guardSaved}: ${bareSymbol(rule.symbol)}`);
+  }
+
+  function removeGuardRule(symbol) {
+    state.guardRules = state.guardRules.filter(item => item.symbol !== symbol);
+    saveGuardRules();
+    renderGuardPanel();
+  }
+
+  function guardMoney(rule, value, data = state.data) {
+    const currency = data?.currency || currencyFor(rule.symbol);
+    return `${currency}${fmt.format(value)}`;
+  }
+
+  function evaluateGuard(rule, data, analysis) {
+    const passedScore = analysis.score >= rule.minScore;
+    const passedRr = analysis.targets.riskReward >= rule.minRr;
+    const nearEntry = rule.entry ? data.currentPrice <= rule.entry : false;
+    const hitTarget = rule.target ? data.currentPrice >= rule.target : false;
+    const hitStop = rule.stop ? data.currentPrice <= rule.stop : false;
+    const parts = [];
+    let tone = "watch";
+    let title = text.guardWatch;
+
+    if (hitStop) {
+      tone = "danger";
+      title = text.guardDanger;
+      parts.push(`\u8dcc\u7834\u505c\u640d ${guardMoney(rule, rule.stop, data)}`);
+    }
+    if (hitTarget) {
+      tone = "ready";
+      title = "\u9054\u5230\u505c\u5229\u76ee\u6a19";
+      parts.push(`\u5df2\u5230\u76ee\u6a19 ${guardMoney(rule, rule.target, data)}`);
+    }
+    if (passedScore && passedRr && nearEntry && !hitStop) {
+      tone = "ready";
+      title = text.guardReady;
+      parts.push(`AI \u5206\u6578 ${analysis.score.toFixed(0)} \u9054\u6a19`);
+      parts.push(`R/R ${analysis.targets.riskReward.toFixed(2)} \u9054\u6a19`);
+      parts.push(`\u50f9\u683c\u63a5\u8fd1\u7406\u60f3\u8cb7\u9ede ${guardMoney(rule, rule.entry, data)}`);
+    }
+    if (!parts.length) {
+      parts.push(`AI \u5206\u6578 ${analysis.score.toFixed(0)} / \u9580\u6abb ${rule.minScore}`);
+      parts.push(`R/R ${analysis.targets.riskReward.toFixed(2)} / \u9580\u6abb ${rule.minRr}`);
+      if (rule.entry) parts.push(`\u8ddd\u96e2\u7406\u60f3\u8cb7\u9ede ${pct(data.currentPrice / rule.entry - 1)}`);
+    }
+
+    return {
+      symbol: rule.symbol,
+      name: rule.name,
+      title,
+      tone,
+      price: data.currentPrice,
+      changePct: data.changePct,
+      score: analysis.score,
+      rr: analysis.targets.riskReward,
+      message: parts.join("\uff1b"),
+      checkedAt: new Date().toISOString(),
+      simulated: data.isSimulated
+    };
+  }
+
+  async function runGuardCheck({ silent = false } = {}) {
+    if (!state.guardRules.length) {
+      renderGuardPanel();
+      return;
+    }
+    elements.guardRunBtn.disabled = true;
+    if (!silent) showStatus(text.guardChecking);
+    const alerts = [];
+    for (const rule of state.guardRules) {
+      let data;
+      try { data = await fetchStockData(rule.symbol); }
+      catch { data = makeFallbackData(rule.symbol); }
+      const analysis = StockStrategy.scoreData(data);
+      alerts.push(evaluateGuard(rule, data, analysis));
+    }
+    state.guardAlerts = alerts.concat(state.guardAlerts).slice(0, 12);
+    saveGuardAlerts();
+    renderGuardPanel();
+    $("#guardLastCheck").textContent = `\u6700\u5f8c\u6aa2\u67e5 ${new Date().toLocaleString("zh-TW", { hour12: false })}`;
+    if (!silent) showStatus(text.guardDone);
+    elements.guardRunBtn.disabled = false;
+  }
+
+  function configureGuardTimer() {
+    if (state.guardTimer) {
+      clearInterval(state.guardTimer);
+      state.guardTimer = null;
+    }
+    const seconds = Number(elements.guardFrequency.value);
+    if (!seconds) return;
+    state.guardTimer = setInterval(() => {
+      if (document.hidden || elements.guardRunBtn.disabled) return;
+      runGuardCheck({ silent: true });
+    }, seconds * 1000);
+  }
+
+  function renderGuardPanel() {
+    const rules = $("#guardRules");
+    const alerts = $("#guardAlerts");
+    rules.innerHTML = state.guardRules.length
+      ? state.guardRules.map(rule => `
+        <div class="guard-rule">
+          <div>
+            <strong>${rule.name} <span class="mono">${bareSymbol(rule.symbol)}</span></strong>
+            <p>\u8cb7\u9ede ${rule.entry ? guardMoney(rule, rule.entry) : "--"} \u00b7 \u505c\u640d ${guardMoney(rule, rule.stop)} \u00b7 \u76ee\u6a19 ${guardMoney(rule, rule.target)} \u00b7 \u5206\u6578 ${rule.minScore}+ \u00b7 R/R ${rule.minRr}+</p>
+          </div>
+          <button type="button" data-remove-guard="${rule.symbol}">\u522a\u9664</button>
+        </div>
+      `).join("")
+      : `<p class="muted">${text.emptyGuard}</p>`;
+
+    alerts.innerHTML = state.guardAlerts.length
+      ? state.guardAlerts.slice(0, 5).map(alert => `
+        <div class="guard-alert ${alert.tone}">
+          <strong>${alert.title} - ${alert.name} <span class="mono">${bareSymbol(alert.symbol)}</span></strong>
+          <p>${alert.simulated ? text.simulatedPrefix + " " : ""}${guardMoney(alert, alert.price)} (${pct(alert.changePct)}) \u00b7 ${alert.message}</p>
+          <p>\u96d9\u91cd\u6821\u9a57\uff1a\u5148\u8b80 AI \u7406\u7531\uff0c\u518d\u9ede\u9023\u7d50\u6838\u5c0d\u5373\u6642\u80a1\u50f9\uff0c\u6700\u5f8c\u81ea\u5df1\u6c7a\u5b9a\u3002</p>
+        </div>
+      `).join("")
+      : `<p class="muted">${text.emptyAlert}</p>`;
+  }
+
   async function scanMarket() {
     elements.scanBtn.disabled = true;
     const body = $("#scannerBody");
@@ -625,6 +830,11 @@
     analyze(symbol);
   });
 
+  $("#guardRules").addEventListener("click", event => {
+    const symbol = event.target.dataset.removeGuard;
+    if (symbol) removeGuardRule(symbol);
+  });
+
   elements.analyzeBtn.addEventListener("click", () => analyze());
   elements.input.addEventListener("keydown", event => { if (event.key === "Enter") analyze(); });
   elements.range.addEventListener("change", () => { if (elements.input.value.trim()) analyze(); });
@@ -633,6 +843,9 @@
   $("#runBacktestBtn").addEventListener("click", renderBacktest);
   elements.watchBtn.addEventListener("click", toggleWatch);
   elements.scanBtn.addEventListener("click", scanMarket);
+  elements.guardAddBtn.addEventListener("click", addGuardRule);
+  elements.guardRunBtn.addEventListener("click", () => runGuardCheck());
+  elements.guardFrequency.addEventListener("change", configureGuardTimer);
   [elements.scannerMinScore, elements.scannerSignal, elements.scannerSort].forEach(control => {
     control.addEventListener("input", renderScannerRows);
     control.addEventListener("change", renderScannerRows);
@@ -640,5 +853,7 @@
   window.addEventListener("resize", () => { if (state.data) renderAll(); });
 
   renderWatchlist();
+  renderGuardPanel();
+  configureGuardTimer();
   analyze();
 })();

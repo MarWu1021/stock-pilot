@@ -107,6 +107,77 @@
         <canvas id="priceChart" height="320"></canvas>
       </section>
 
+      <section class="card guard-card">
+        <div class="section-head compact scanner-head">
+          <div>
+            <p class="card-label">AI Watch Guard</p>
+            <h3>&#19968;&#37749;&#30447;&#30436;&#38450;&#21574;&#31995;&#32113;</h3>
+            <p class="muted small">&#25226;&#36984;&#32929;&#26781;&#20214;&#12289;&#20572;&#25613;&#20572;&#21033;&#12289;&#25216;&#34899;&#20998;&#25976;&#33287;&#39080;&#38570;&#22577;&#37228;&#27604;&#20570;&#25104;&#35215;&#21063;&#65292;&#19968;&#37749;&#27298;&#26597;&#24460;&#29986;&#29983;&#36890;&#30693;&#25688;&#35201;&#12290;</p>
+          </div>
+          <div class="guard-actions">
+            <button id="guardAddBtn" class="ghost-btn" type="button">&#20786;&#23384;&#30446;&#21069;&#35215;&#21063;</button>
+            <button id="guardRunBtn" class="primary-btn compact-btn" type="button">&#19968;&#37749;&#27298;&#26597;</button>
+          </div>
+        </div>
+        <div class="guard-grid">
+          <label>
+            &#29702;&#24819;&#36023;&#20837;&#20729;
+            <input id="guardEntry" type="number" min="0" step="0.01" placeholder="&#21487;&#30041;&#31354;">
+          </label>
+          <label>
+            &#20572;&#25613;&#20729;
+            <input id="guardStop" type="number" min="0" step="0.01" placeholder="&#33258;&#21205;&#24118;&#20837;">
+          </label>
+          <label>
+            &#20572;&#21033;&#30446;&#27161;
+            <input id="guardTarget" type="number" min="0" step="0.01" placeholder="&#33258;&#21205;&#24118;&#20837;">
+          </label>
+          <label>
+            &#26368;&#20302; AI &#20998;&#25976;
+            <input id="guardMinScore" type="number" min="0" max="100" step="1" value="68">
+          </label>
+          <label>
+            &#26368;&#20302; R/R
+            <input id="guardMinRr" type="number" min="0" step="0.1" value="1.5">
+          </label>
+          <label>
+            &#27298;&#26597;&#38971;&#29575;
+            <select id="guardFrequency">
+              <option value="manual">&#25163;&#21205;&#27298;&#26597;</option>
+              <option value="60">60 &#31186;&#33258;&#21205;</option>
+              <option value="300">5 &#20998;&#37912;&#33258;&#21205;</option>
+            </select>
+          </label>
+        </div>
+        <div class="guard-status-grid">
+          <article class="guard-step">
+            <span>1</span>
+            <strong>AI &#24314;&#35696;&#29702;&#30001;</strong>
+            <p id="guardReason">&#20808;&#20998;&#26512;&#19968;&#27284;&#32929;&#31080;&#65292;&#31995;&#32113;&#26371;&#24118;&#20837;&#35215;&#21063;&#12290;</p>
+          </article>
+          <article class="guard-step">
+            <span>2</span>
+            <strong>&#26680;&#23565;&#21363;&#26178;&#32929;&#20729;</strong>
+            <p id="guardLastCheck">&#23578;&#26410;&#27298;&#26597;</p>
+          </article>
+          <article class="guard-step">
+            <span>3</span>
+            <strong>&#33258;&#24049;&#20570;&#26368;&#24460;&#27770;&#23450;</strong>
+            <p>AI &#21482;&#20570;&#31721;&#36984;&#12289;&#25972;&#29702;&#33287;&#36890;&#30693;&#65292;&#19981;&#20195;&#26367;&#19979;&#21934;&#12290;</p>
+          </article>
+        </div>
+        <div class="guard-output">
+          <div>
+            <h4>&#30447;&#30436;&#35215;&#21063;</h4>
+            <div id="guardRules" class="guard-rules"></div>
+          </div>
+          <div>
+            <h4>LINE &#36890;&#30693;&#25688;&#35201;</h4>
+            <div id="guardAlerts" class="guard-alerts"></div>
+          </div>
+        </div>
+      </section>
+
       <section class="insight-grid">
         <article class="card">
           <div class="section-head compact">
