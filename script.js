@@ -29,7 +29,10 @@
     guardDone: "\u76ef\u76e4\u6aa2\u67e5\u5b8c\u6210",
     guardReady: "\u53ef\u5217\u5165\u89c0\u5bdf",
     guardWatch: "\u7b49\u5f85\u689d\u4ef6",
-    guardDanger: "\u98a8\u96aa\u63d0\u9192"
+    guardDanger: "\u98a8\u96aa\u63d0\u9192",
+    notifySending: "\u6b63\u5728\u767c\u9001 Discord \u901a\u77e5...",
+    notifySent: "Discord \u901a\u77e5\u5df2\u9001\u51fa",
+    notifyFailed: "Discord \u901a\u77e5\u5931\u6557\uff0c\u8acb\u78ba\u8a8d Vercel \u74b0\u5883\u8b8a\u6578 DISCORD_WEBHOOK_URL \u5df2\u8a2d\u5b9a\u3002"
   };
 
   const names = {
@@ -76,7 +79,8 @@
     guardMinRr: $("#guardMinRr"),
     guardFrequency: $("#guardFrequency"),
     guardAddBtn: $("#guardAddBtn"),
-    guardRunBtn: $("#guardRunBtn")
+    guardRunBtn: $("#guardRunBtn"),
+    notifyTestBtn: $("#notifyTestBtn")
   };
 
   function normalizeSymbol(raw) {
@@ -669,6 +673,46 @@
     };
   }
 
+  function formatNotifyPayload(alert) {
+    return {
+      title: `AI \u76ef\u76e4\u63d0\u9192\uff1a${alert.name} ${bareSymbol(alert.symbol)}`,
+      status: alert.title,
+      symbol: bareSymbol(alert.symbol),
+      price: `${alert.simulated ? text.simulatedPrefix + " " : ""}${guardMoney(alert, alert.price)}`,
+      change: pct(alert.changePct),
+      score: alert.score.toFixed(0),
+      rr: alert.rr.toFixed(2),
+      message: alert.message,
+      note: "\u9632\u5446\uff1a\u5148\u8b80 AI \u7406\u7531\uff0c\u518d\u6838\u5c0d\u5373\u6642\u80a1\u50f9\uff0c\u6700\u5f8c\u81ea\u5df1\u6c7a\u5b9a\u3002"
+    };
+  }
+
+  async function sendDiscordNotification(alert) {
+    const response = await fetch("/api/notify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(formatNotifyPayload(alert))
+    });
+    if (!response.ok) throw new Error("Discord notify failed");
+    return response.json();
+  }
+
+  async function sendTestNotification() {
+    if (!state.data || !state.analysis) return;
+    elements.notifyTestBtn.disabled = true;
+    showStatus(text.notifySending);
+    const alert = evaluateGuard(makeGuardRule(), state.data, state.analysis);
+    alert.title = "\u6e2c\u8a66\u901a\u77e5";
+    try {
+      await sendDiscordNotification(alert);
+      showStatus(text.notifySent);
+    } catch {
+      showStatus(text.notifyFailed, true);
+    } finally {
+      elements.notifyTestBtn.disabled = false;
+    }
+  }
+
   async function runGuardCheck({ silent = false } = {}) {
     if (!state.guardRules.length) {
       renderGuardPanel();
@@ -688,6 +732,11 @@
     saveGuardAlerts();
     renderGuardPanel();
     $("#guardLastCheck").textContent = `\u6700\u5f8c\u6aa2\u67e5 ${new Date().toLocaleString("zh-TW", { hour12: false })}`;
+    const importantAlerts = alerts.filter(alert => alert.tone !== "watch");
+    for (const alert of importantAlerts) {
+      try { await sendDiscordNotification(alert); }
+      catch { if (!silent) showStatus(text.notifyFailed, true); }
+    }
     if (!silent) showStatus(text.guardDone);
     elements.guardRunBtn.disabled = false;
   }
@@ -845,6 +894,7 @@
   elements.scanBtn.addEventListener("click", scanMarket);
   elements.guardAddBtn.addEventListener("click", addGuardRule);
   elements.guardRunBtn.addEventListener("click", () => runGuardCheck());
+  elements.notifyTestBtn.addEventListener("click", sendTestNotification);
   elements.guardFrequency.addEventListener("change", configureGuardTimer);
   [elements.scannerMinScore, elements.scannerSignal, elements.scannerSort].forEach(control => {
     control.addEventListener("input", renderScannerRows);
