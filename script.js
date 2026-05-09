@@ -28,6 +28,8 @@
     guardChecking: "\u6b63\u5728\u6aa2\u67e5\u76ef\u76e4\u6e05\u55ae...",
     guardDone: "\u76ef\u76e4\u6aa2\u67e5\u5b8c\u6210",
     guardReady: "\u53ef\u5217\u5165\u89c0\u5bdf",
+    guardPriceHit: "\u9054\u5230\u7406\u60f3\u8cb7\u5165\u50f9",
+    guardRiskMode: "\u505c\u5229 / \u505c\u640d\u63d0\u9192",
     guardWatch: "\u7b49\u5f85\u689d\u4ef6",
     guardDanger: "\u98a8\u96aa\u63d0\u9192",
     notifySending: "\u6b63\u5728\u767c\u9001 Discord \u901a\u77e5...",
@@ -72,6 +74,7 @@
     scannerMinScore: $("#scannerMinScore"),
     scannerSignal: $("#scannerSignal"),
     scannerSort: $("#scannerSort"),
+    guardMode: $("#guardMode"),
     guardEntry: $("#guardEntry"),
     guardStop: $("#guardStop"),
     guardTarget: $("#guardTarget"),
@@ -594,6 +597,7 @@
     return {
       symbol: state.data.symbol,
       name: state.data.name,
+      mode: elements.guardMode.value,
       entry: Number(elements.guardEntry.value) || null,
       stop: Number(elements.guardStop.value) || state.analysis.targets.stopLoss,
       target: Number(elements.guardTarget.value) || state.analysis.targets.target1,
@@ -640,7 +644,14 @@
     return `${currency}${fmt.format(value)}`;
   }
 
+  function guardModeLabel(mode = "ai") {
+    if (mode === "price") return "\u7d14\u5230\u50f9";
+    if (mode === "risk") return "\u505c\u5229 / \u505c\u640d";
+    return "AI \u9632\u5446";
+  }
+
   function evaluateGuard(rule, data, analysis) {
+    const mode = rule.mode || "ai";
     const passedScore = analysis.score >= rule.minScore;
     const passedRr = analysis.targets.riskReward >= rule.minRr;
     const nearEntry = rule.entry ? data.currentPrice <= rule.entry : false;
@@ -660,7 +671,12 @@
       title = "\u9054\u5230\u505c\u5229\u76ee\u6a19";
       parts.push(`\u5df2\u5230\u76ee\u6a19 ${guardMoney(rule, rule.target, data)}`);
     }
-    if (passedScore && passedRr && nearEntry && !hitStop) {
+    if (mode === "price" && nearEntry && !hitStop && !hitTarget) {
+      tone = "ready";
+      title = text.guardPriceHit;
+      parts.push(`\u76ee\u524d\u50f9\u5df2\u4f4e\u65bc\u6216\u7b49\u65bc\u4f60\u8a2d\u5b9a\u7684\u8cb7\u5165\u50f9 ${guardMoney(rule, rule.entry, data)}`);
+    }
+    if (mode === "ai" && passedScore && passedRr && nearEntry && !hitStop) {
       tone = "ready";
       title = text.guardReady;
       parts.push(`AI \u5206\u6578 ${analysis.score.toFixed(0)} \u9054\u6a19`);
@@ -668,8 +684,12 @@
       parts.push(`\u50f9\u683c\u63a5\u8fd1\u7406\u60f3\u8cb7\u9ede ${guardMoney(rule, rule.entry, data)}`);
     }
     if (!parts.length) {
-      parts.push(`AI \u5206\u6578 ${analysis.score.toFixed(0)} / \u9580\u6abb ${rule.minScore}`);
-      parts.push(`R/R ${analysis.targets.riskReward.toFixed(2)} / \u9580\u6abb ${rule.minRr}`);
+      if (mode === "price") parts.push(`\u7d14\u5230\u50f9\u6a21\u5f0f\uff1a\u7b49\u5f85\u80a1\u50f9 <= ${guardMoney(rule, rule.entry, data)}`);
+      else if (mode === "risk") parts.push(`\u505c\u5229 / \u505c\u640d\u6a21\u5f0f\uff1a\u50c5\u5728\u9054\u5230\u76ee\u6a19\u6216\u8dcc\u7834\u505c\u640d\u6642\u63d0\u9192`);
+      else {
+        parts.push(`AI \u5206\u6578 ${analysis.score.toFixed(0)} / \u9580\u6abb ${rule.minScore}`);
+        parts.push(`R/R ${analysis.targets.riskReward.toFixed(2)} / \u9580\u6abb ${rule.minRr}`);
+      }
       if (rule.entry) parts.push(`\u8ddd\u96e2\u7406\u60f3\u8cb7\u9ede ${pct(data.currentPrice / rule.entry - 1)}`);
     }
 
@@ -682,6 +702,7 @@
       changePct: data.changePct,
       score: analysis.score,
       rr: analysis.targets.riskReward,
+      mode,
       message: parts.join("\uff1b"),
       checkedAt: new Date().toISOString(),
       simulated: data.isSimulated
@@ -702,6 +723,10 @@
     };
   }
 
+  function shouldNotify(alert) {
+    return alert.tone !== "watch";
+  }
+
   async function sendDiscordNotification(alert) {
     const response = await fetch("/api/notify", {
       method: "POST",
@@ -716,7 +741,8 @@
     if (!state.data || !state.analysis) return;
     elements.notifyTestBtn.disabled = true;
     showStatus(text.notifySending);
-    const alert = evaluateGuard(makeGuardRule(), state.data, state.analysis);
+    const rule = makeGuardRule();
+    const alert = evaluateGuard(rule, state.data, state.analysis);
     alert.title = "\u6e2c\u8a66\u901a\u77e5";
     try {
       await sendDiscordNotification(alert);
@@ -741,7 +767,8 @@
       try { data = await fetchStockData(rule.symbol); }
       catch { data = makeFallbackData(rule.symbol); }
       const analysis = StockStrategy.scoreData(data);
-      alerts.push(evaluateGuard(rule, data, analysis));
+      const alert = evaluateGuard(rule, data, analysis);
+      alerts.push(alert);
     }
     state.guardAlerts = alerts
       .concat(state.guardAlerts.filter(existing => !alerts.some(alert => alert.symbol === existing.symbol)))
@@ -749,7 +776,7 @@
     saveGuardAlerts();
     renderGuardPanel();
     $("#guardLastCheck").textContent = `\u6700\u5f8c\u6aa2\u67e5 ${new Date().toLocaleString("zh-TW", { hour12: false })}`;
-    const importantAlerts = alerts.filter(alert => alert.tone !== "watch");
+    const importantAlerts = alerts.filter(shouldNotify);
     for (const alert of importantAlerts) {
       try { await sendDiscordNotification(alert); }
       catch { if (!silent) showStatus(text.notifyFailed, true); }
@@ -779,7 +806,7 @@
         <div class="guard-rule">
           <div>
             <strong>${rule.name} <span class="mono">${bareSymbol(rule.symbol)}</span></strong>
-            <p>\u8cb7\u9ede ${rule.entry ? guardMoney(rule, rule.entry) : "--"} \u00b7 \u505c\u640d ${guardMoney(rule, rule.stop)} \u00b7 \u76ee\u6a19 ${guardMoney(rule, rule.target)} \u00b7 \u5206\u6578 ${rule.minScore}+ \u00b7 R/R ${rule.minRr}+</p>
+            <p>${guardModeLabel(rule.mode)} \u00b7 \u8cb7\u9ede ${rule.entry ? guardMoney(rule, rule.entry) : "--"} \u00b7 \u505c\u640d ${guardMoney(rule, rule.stop)} \u00b7 \u76ee\u6a19 ${guardMoney(rule, rule.target)} \u00b7 \u5206\u6578 ${rule.minScore}+ \u00b7 R/R ${rule.minRr}+</p>
           </div>
           <button type="button" data-remove-guard="${rule.symbol}">\u522a\u9664</button>
         </div>
