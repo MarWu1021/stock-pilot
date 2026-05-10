@@ -75,7 +75,9 @@
     scannerSignal: $("#scannerSignal"),
     scannerSort: $("#scannerSort"),
     guardMode: $("#guardMode"),
+    guardPriceType: $("#guardPriceType"),
     guardEntry: $("#guardEntry"),
+    guardDropPct: $("#guardDropPct"),
     guardStop: $("#guardStop"),
     guardTarget: $("#guardTarget"),
     guardMinScore: $("#guardMinScore"),
@@ -589,7 +591,21 @@
       elements.guardTarget.value = state.analysis.targets.target1.toFixed(2);
       state.guardSyncedSymbol = state.data.symbol;
     }
+    updateDerivedEntry();
     $("#guardReason").textContent = state.analysis.reason;
+  }
+
+  function derivedDropEntry(data = state.data) {
+    if (!data) return null;
+    const dropPct = Number(elements.guardDropPct.value) || 0;
+    const reference = data.previousClose || data.closes[data.closes.length - 2] || data.currentPrice;
+    return reference * (1 - dropPct / 100);
+  }
+
+  function updateDerivedEntry() {
+    if (!state.data || elements.guardPriceType.value !== "dropPercent") return;
+    const price = derivedDropEntry();
+    if (Number.isFinite(price)) elements.guardEntry.value = price.toFixed(2);
   }
 
   function makeGuardRule() {
@@ -598,7 +614,10 @@
       symbol: state.data.symbol,
       name: state.data.name,
       mode: elements.guardMode.value,
-      entry: Number(elements.guardEntry.value) || null,
+      priceType: elements.guardPriceType.value,
+      dropPct: Number(elements.guardDropPct.value) || 0,
+      referencePrice: state.data.previousClose || state.data.currentPrice,
+      entry: elements.guardPriceType.value === "dropPercent" ? derivedDropEntry() : Number(elements.guardEntry.value) || null,
       stop: Number(elements.guardStop.value) || state.analysis.targets.stopLoss,
       target: Number(elements.guardTarget.value) || state.analysis.targets.target1,
       minScore: Number(elements.guardMinScore.value) || 68,
@@ -650,11 +669,27 @@
     return "AI \u9632\u5446";
   }
 
+  function ruleEntryPrice(rule, data) {
+    if (rule.priceType === "dropPercent") {
+      const reference = data?.previousClose || rule.referencePrice || data?.currentPrice || rule.entry;
+      return reference * (1 - (Number(rule.dropPct) || 0) / 100);
+    }
+    return rule.entry;
+  }
+
+  function ruleEntryLabel(rule, data) {
+    const entry = ruleEntryPrice(rule, data);
+    if (!entry) return "--";
+    if (rule.priceType === "dropPercent") return `${guardMoney(rule, entry, data)} (${rule.dropPct}% \u8dcc\u5e45)`;
+    return guardMoney(rule, entry, data);
+  }
+
   function evaluateGuard(rule, data, analysis) {
     const mode = rule.mode || "ai";
+    const entryPrice = ruleEntryPrice(rule, data);
     const passedScore = analysis.score >= rule.minScore;
     const passedRr = analysis.targets.riskReward >= rule.minRr;
-    const nearEntry = rule.entry ? data.currentPrice <= rule.entry : false;
+    const nearEntry = entryPrice ? data.currentPrice <= entryPrice : false;
     const hitTarget = rule.target ? data.currentPrice >= rule.target : false;
     const hitStop = rule.stop ? data.currentPrice <= rule.stop : false;
     const parts = [];
@@ -674,23 +709,23 @@
     if (mode === "price" && nearEntry && !hitStop && !hitTarget) {
       tone = "ready";
       title = text.guardPriceHit;
-      parts.push(`\u76ee\u524d\u50f9\u5df2\u4f4e\u65bc\u6216\u7b49\u65bc\u4f60\u8a2d\u5b9a\u7684\u8cb7\u5165\u50f9 ${guardMoney(rule, rule.entry, data)}`);
+      parts.push(`\u76ee\u524d\u50f9\u5df2\u4f4e\u65bc\u6216\u7b49\u65bc\u4f60\u8a2d\u5b9a\u7684\u8cb7\u5165\u689d\u4ef6 ${ruleEntryLabel(rule, data)}`);
     }
     if (mode === "ai" && passedScore && passedRr && nearEntry && !hitStop) {
       tone = "ready";
       title = text.guardReady;
       parts.push(`AI \u5206\u6578 ${analysis.score.toFixed(0)} \u9054\u6a19`);
       parts.push(`R/R ${analysis.targets.riskReward.toFixed(2)} \u9054\u6a19`);
-      parts.push(`\u50f9\u683c\u63a5\u8fd1\u7406\u60f3\u8cb7\u9ede ${guardMoney(rule, rule.entry, data)}`);
+      parts.push(`\u50f9\u683c\u63a5\u8fd1\u7406\u60f3\u8cb7\u9ede ${ruleEntryLabel(rule, data)}`);
     }
     if (!parts.length) {
-      if (mode === "price") parts.push(`\u7d14\u5230\u50f9\u6a21\u5f0f\uff1a\u7b49\u5f85\u80a1\u50f9 <= ${guardMoney(rule, rule.entry, data)}`);
+      if (mode === "price") parts.push(`\u7d14\u5230\u50f9\u6a21\u5f0f\uff1a\u7b49\u5f85\u80a1\u50f9 <= ${ruleEntryLabel(rule, data)}`);
       else if (mode === "risk") parts.push(`\u505c\u5229 / \u505c\u640d\u6a21\u5f0f\uff1a\u50c5\u5728\u9054\u5230\u76ee\u6a19\u6216\u8dcc\u7834\u505c\u640d\u6642\u63d0\u9192`);
       else {
         parts.push(`AI \u5206\u6578 ${analysis.score.toFixed(0)} / \u9580\u6abb ${rule.minScore}`);
         parts.push(`R/R ${analysis.targets.riskReward.toFixed(2)} / \u9580\u6abb ${rule.minRr}`);
       }
-      if (rule.entry) parts.push(`\u8ddd\u96e2\u7406\u60f3\u8cb7\u9ede ${pct(data.currentPrice / rule.entry - 1)}`);
+      if (entryPrice) parts.push(`\u8ddd\u96e2\u7406\u60f3\u8cb7\u9ede ${pct(data.currentPrice / entryPrice - 1)}`);
     }
 
     return {
@@ -806,7 +841,7 @@
         <div class="guard-rule">
           <div>
             <strong>${rule.name} <span class="mono">${bareSymbol(rule.symbol)}</span></strong>
-            <p>${guardModeLabel(rule.mode)} \u00b7 \u8cb7\u9ede ${rule.entry ? guardMoney(rule, rule.entry) : "--"} \u00b7 \u505c\u640d ${guardMoney(rule, rule.stop)} \u00b7 \u76ee\u6a19 ${guardMoney(rule, rule.target)} \u00b7 \u5206\u6578 ${rule.minScore}+ \u00b7 R/R ${rule.minRr}+</p>
+            <p>${guardModeLabel(rule.mode)} \u00b7 \u8cb7\u9ede ${ruleEntryLabel(rule)} \u00b7 \u505c\u640d ${guardMoney(rule, rule.stop)} \u00b7 \u76ee\u6a19 ${guardMoney(rule, rule.target)} \u00b7 \u5206\u6578 ${rule.minScore}+ \u00b7 R/R ${rule.minRr}+</p>
           </div>
           <button type="button" data-remove-guard="${rule.symbol}">\u522a\u9664</button>
         </div>
@@ -948,6 +983,8 @@
   elements.guardRunBtn.addEventListener("click", () => runGuardCheck());
   elements.notifyTestBtn.addEventListener("click", sendTestNotification);
   elements.clearAlertsBtn.addEventListener("click", clearGuardAlerts);
+  elements.guardPriceType.addEventListener("change", updateDerivedEntry);
+  elements.guardDropPct.addEventListener("input", updateDerivedEntry);
   elements.guardFrequency.addEventListener("change", configureGuardTimer);
   [elements.scannerMinScore, elements.scannerSignal, elements.scannerSort].forEach(control => {
     control.addEventListener("input", renderScannerRows);
